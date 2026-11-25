@@ -172,7 +172,7 @@ async function handle(type, p = {}) {
       return { ok: true, ...await yt.info(p.url) };
     case "play":
       yt.useCookies(p.cookies);
-      return { ok: true, ...await yt.playable(p.url) };
+      return { ok: true, ...await yt.playable(p.url, 1080, !!p.fresh) };
     case "list":
       yt.useCookies(p.cookies);
       return { ok: true, ...await yt.list(p.url) };

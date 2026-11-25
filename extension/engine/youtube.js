@@ -80,20 +80,51 @@ export async function info(url) {
 
 // ---------------------------------------------------------------- ad-free playback (player.js)
 
-// Streams the page can play itself with MediaSource: fragmented MP4 (H.264 + AAC) with a segment index.
-// quality = max short side (0 = best). Live streams and videos without such streams return an error, and
-// the page then keeps YouTube's own player.
-export async function playable(url, quality = 1080) {
-  const r = await ytp.resolve(videoID(url), { probe: true });
+// Streams the page can play itself with MediaSource: fragmented MP4 (H.264 or AV1, + AAC) with a segment
+// index. quality = max short side (0 = best); at each size H.264 wins (cheapest to decode). Clients answer
+// differently (signed-in mweb/tv can lack such streams), so when the first answer has none the others are
+// asked. Last resort: the muxed 360p MP4, played as a plain file. Live streams return an error, and the
+// page then keeps YouTube's own player. No probe by default (fast start); the page asks again with probe
+// when a link is refused.
+const canPlay = (mime) => typeof MediaSource !== "undefined" && MediaSource.isTypeSupported(mime);
+const mseMime = (f) => `${f.kind}/mp4; codecs="${f.codecs}"`;
+
+function choosePlayable(r, quality) {
+  const fmts = r.formats.filter((f) => f.ext === "mp4" && f.init && f.index && !f.drm && canPlay(mseMime(f)));
+  const v = pickVideo(fmts, quality), a = pickAudio(fmts, "aac");
+  const out = (f) => ({ url: f.url, client: f.client, mime: mseMime(f), init: f.init, index: f.index,
+    size: sizeOf(f), height: f.height });
+  if (v && a) return { video: out(v), audio: out(a) };
+  const m = r.formats.filter((f) => f.kind === "av" && f.ext === "mp4" && !f.drm).sort((x, y) => y.height - x.height)[0];
+  return m ? { progressive: { url: m.url, client: m.client, height: m.height } } : null;
+}
+
+const describe = (r) => {
+  const n = (k) => r.formats.filter((f) => f.kind === k).length;
+  return `${r.client}: ${n("video")} video, ${n("audio")} audio, ${n("av")} muxed`;
+};
+
+export async function playable(url, quality = 1080, probe = false) {
+  const vid = videoID(url);
+  let r = await ytp.resolve(vid, { probe });
   if (r.error) throw new Error(why(r));
   if (r.live) throw new Error("Live stream");
-  const mse = (f) => f.ext === "mp4" && f.init && f.index;
-  const fmts = r.formats.filter((f) => mse(f) && (f.kind === "audio" || /^avc1/.test(f.codecs)));
-  const v = pickVideo(fmts, quality), a = pickAudio(fmts, "aac");
-  if (!v || !a) throw new Error("No MP4 streams for this video");
-  const out = (f) => ({ url: f.url, client: f.client, mime: `${f.kind}/mp4; codecs="${f.codecs}"`,
-    init: f.init, index: f.index, size: sizeOf(f), height: f.height });
-  return { title: r.title, duration: r.duration, video: out(v), audio: out(a) };
+  let pick = choosePlayable(r, quality);
+  const tried = new Set([r.client]), notes = [describe(r)];
+  // Only a muxed file (or nothing): another client may have the real streams.
+  for (const cl of ["ios", "tv", "mweb"]) {
+    if (pick && !pick.progressive) break;
+    if (tried.has(cl)) continue;
+    tried.add(cl);
+    const r2 = await ytp.resolve(vid, { order: [cl], probe }).catch((e) => ({ error: e.message, tried: [] }));
+    if (r2.error) { notes.push(`${cl}: ${r2.tried.length ? why(r2) : r2.error}`); continue; }
+    notes.push(describe(r2));
+    const p2 = choosePlayable(r2, quality);
+    if (p2 && (!pick || !p2.progressive)) { r = r2; pick = p2; }
+  }
+  if (pick?.progressive) console.warn("[play] only a muxed stream:", notes.join("; "));
+  if (!pick) throw new Error(`No playable streams (${notes.join("; ")})`);
+  return { title: r.title, duration: r.duration, ...pick };
 }
 
 // ---------------------------------------------------------------- playlists

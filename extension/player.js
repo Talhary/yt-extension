@@ -15,6 +15,8 @@
   const AHEAD = 30;          // seconds buffered ahead of the playhead
   const BEHIND = 30;         // seconds kept behind it (the rest is freed)
   const MAX_REQ = 4 << 20;   // bytes per range request
+  const LOW = 6;             // seconds ahead below which we fetch one segment at a time (fast start / seek)
+  const PREFETCH_TTL = 4 * 3600 * 1000; // stream links last ~6 h
   const QUALITY = 1080;      // max short side (H.264 tops out here on YouTube)
 
   let enabled = null;        // null until the setting is read
@@ -95,6 +97,28 @@
     return t;
   }
 
+  // ---------------------------------------------------------------- prefetch
+
+  // Stream links and headers (init segment + segment index) for a video, fetched as soon as its page
+  // opens, so that taking over from an ad only has to download the first segments.
+  const pre = new Map(); // vid -> { time, promise }
+
+  function prefetch(vid) {
+    const hit = pre.get(vid);
+    if (hit && Date.now() - hit.time < PREFETCH_TTL) return hit.promise;
+    const promise = (async () => {
+      const res = await call("play", { url: `https://www.youtube.com/watch?v=${vid}` });
+      if (!res.ok) throw new Error(res.error);
+      const signal = AbortSignal.timeout(20000);
+      if (!res.progressive) res.heads = await Promise.all([res.video, res.audio].map((f) => getRange(f, 0, f.index[1], signal)));
+      return res;
+    })();
+    promise.catch(() => {});
+    pre.set(vid, { time: Date.now(), promise });
+    for (const k of [...pre.keys()].slice(0, -5)) pre.delete(k); // keep the last few
+    return promise;
+  }
+
   // ---------------------------------------------------------------- session
 
   async function start(vid, at) {
@@ -102,10 +126,14 @@
     cur = s;
     pauseYouTube();
     try {
+      const info = prefetch(vid);
       await mountOverlay(s);
-      const res = await call("play", { url: `https://www.youtube.com/watch?v=${vid}` });
+      let res;
+      try { res = await info; } catch (e) {
+        pre.delete(vid); // a failed prefetch (e.g. network blip) gets one fresh try
+        res = await prefetch(vid);
+      }
       if (cur !== s) return;
-      if (!res.ok) throw new Error(res.error);
       s.info = res;
       await mountStreams(s);
     } catch (e) {
@@ -157,12 +185,18 @@
   }
 
   async function mountStreams(s) {
-    const { video: vf, audio: af, duration } = s.info;
-    for (const f of [vf, af]) if (!MediaSource.isTypeSupported(f.mime)) throw new Error(`Unsupported format ${f.mime}`);
-    const signal = s.ac.signal;
-    const heads = await Promise.all([vf, af].map((f) => getRange(f, 0, f.index[1], signal)));
-    const ms = s.ms = new MediaSource();
+    const { video: vf, audio: af, duration, progressive } = s.info;
     const v = s.video;
+    if (progressive) {
+      // Only a muxed 360p file was available: the browser plays it as it is (with Range requests).
+      v.src = `${progressive.url}&ytpc=${progressive.client}`;
+      v.addEventListener("error", () => { if (cur === s) fail(s, "The stream couldn't be loaded"); }, { once: true });
+      notice("Ad-free player: only 360p is available for this video");
+      return setupVideo(s);
+    }
+    for (const f of [vf, af]) if (!MediaSource.isTypeSupported(f.mime)) throw new Error(`Unsupported format ${f.mime}`);
+    const heads = s.info.heads;
+    const ms = s.ms = new MediaSource();
     s.objUrl = URL.createObjectURL(ms);
     v.src = s.objUrl;
     await new Promise((r) => ms.addEventListener("sourceopen", r, { once: true }));
@@ -170,7 +204,13 @@
     s.tracks = [vf, af].map((f, i) => ({ f, sb: ms.addSourceBuffer(f.mime), segs: parseSidx(heads[i], f.index[0]) }));
     await Promise.all(s.tracks.map((tr, i) => sbDo(tr.sb, () => tr.sb.appendBuffer(heads[i].subarray(0, tr.f.init[1] + 1)))));
     ms.duration = Math.max(duration || 0, ...s.tracks.map((tr) => tr.segs.at(-1).t1));
+    return setupVideo(s);
+  }
 
+  // Controls, start position, volume, spinner and buffering for a mounted session.
+  async function setupVideo(s) {
+    const v = s.video;
+    s.ready = true;
     const { cpVolume } = await chrome.storage.local.get({ cpVolume: null });
     if (cpVolume) { v.volume = cpVolume.volume; v.muted = cpVolume.muted; }
     v.controls = true;
@@ -205,7 +245,8 @@
     if (i < 0) { tr.done = true; return maybeEnd(s); }
     tr.done = false;
     let j = i;
-    while (j + 1 < tr.segs.length && j - i < 5 && tr.segs[j + 1].b - tr.segs[i].a < MAX_REQ) j++;
+    // Starving (start, seek, slow line): one segment, so playback starts as soon as possible.
+    if (end - t >= LOW) while (j + 1 < tr.segs.length && j - i < 5 && tr.segs[j + 1].b - tr.segs[i].a < MAX_REQ) j++;
     tr.busy = true;
     tr.ac = new AbortController();
     try {
@@ -235,7 +276,8 @@
   }
 
   async function refresh(s) {
-    const res = await call("play", { url: `https://www.youtube.com/watch?v=${s.vid}` });
+    pre.delete(s.vid);
+    const res = await call("play", { url: `https://www.youtube.com/watch?v=${s.vid}`, fresh: true });
     if (!res.ok || cur !== s) return false;
     const next = [res.video, res.audio];
     if (s.tracks.some((tr, i) => tr.f.mime !== next[i].mime || tr.f.size !== next[i].size)) return false;
@@ -288,7 +330,7 @@
   // YouTube's keyboard shortcuts, applied to our player instead.
   document.addEventListener("keydown", (e) => {
     const s = cur, v = s?.video;
-    if (!v || !s.tracks.length || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (!v || !s.ready || e.ctrlKey || e.metaKey || e.altKey) return;
     const el = e.target;
     if (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return;
     const inPlayer = s.host?.contains(document.activeElement);
@@ -371,6 +413,7 @@
     }
     if (!vid) return;
     watchPlayer();
+    if (!skip.has(vid)) prefetch(vid);
     if (pos.vid !== vid) pos = { vid, t: startTime(), since: Date.now() };
     if (inAd()) {
       if (!skip.has(vid)) start(vid, pos.t);
