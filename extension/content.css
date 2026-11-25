@@ -1,0 +1,281 @@
+/* Uses YouTube's own theme variables so it matches light and dark mode. */
+.ytdl-btn, .ytdl-overlay, .ytdl-toast, .ytdl-thumb {
+  font-family: "Roboto", "YouTube Sans", Arial, sans-serif;
+  box-sizing: border-box;
+  --ytdl-text: var(--yt-spec-text-primary, #f1f1f1);
+  --ytdl-muted: var(--yt-spec-text-secondary, #aaa);
+  --ytdl-bg: var(--yt-spec-menu-background, #212121);
+  --ytdl-chip: var(--yt-spec-badge-chip-background, rgba(255,255,255,.1));
+  --ytdl-hover: var(--yt-spec-button-chip-background-hover, rgba(255,255,255,.2));
+  --ytdl-line: var(--yt-spec-10-percent-layer, rgba(255,255,255,.1));
+  --ytdl-accent: #ff0033;
+}
+.ytdl-overlay *, .ytdl-overlay *::before { box-sizing: border-box; }
+.ytdl-btn svg, .ytdl-overlay svg, .ytdl-toast svg, .ytdl-thumb svg { fill: currentColor; flex: none; }
+
+/* ---------- Inline pill next to Like / Share ---------- */
+.ytdl-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 36px; padding: 0 16px 0 12px; margin-left: 8px;
+  border: 0; border-radius: 18px; cursor: pointer; white-space: nowrap;
+  font-size: 14px; font-weight: 500; line-height: 36px;
+  background: var(--ytdl-chip); color: var(--ytdl-text);
+  transition: background .15s;
+}
+.ytdl-pill:hover { background: var(--ytdl-hover); }
+.ytdl-pill svg { width: 24px; height: 24px; }
+
+/* Button in the YouTube player's control bar; .ytp-button gives it the native size and tooltip */
+.ytdl-ytp.ytp-button {
+  display: inline-flex !important; align-items: center; justify-content: center;
+  color: #fff; opacity: .9; vertical-align: top;
+}
+.ytdl-ytp.ytp-button:hover { opacity: 1; }
+.ytdl-ytp svg { width: 24px; height: 24px; filter: drop-shadow(0 0 2px rgba(0,0,0,.5)); }
+
+.ytdl-no-thumbs .ytdl-thumb { display: none !important; }
+
+/* Round icon button in the YT Music player bar */
+.ytdl-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px; margin: 0 4px; padding: 0;
+  border: 0; border-radius: 50%; cursor: pointer; background: transparent;
+  color: #fff; opacity: .9;
+}
+.ytdl-icon:hover { background: rgba(255,255,255,.1); opacity: 1; }
+.ytdl-icon svg { width: 24px; height: 24px; }
+
+/* Fallback floating button (only if the inline slot can't be found) */
+.ytdl-fab {
+  position: fixed; right: 24px; bottom: 24px; z-index: 2147483000;
+  width: 48px; height: 48px; border: 0; border-radius: 50%; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  background: #f1f1f1; color: #0f0f0f; box-shadow: 0 4px 16px rgba(0,0,0,.35);
+}
+.ytdl-fab svg { width: 24px; height: 24px; }
+
+/* ---------- Hover icon on thumbnails ---------- */
+/* bottom-left: the top corners hold YouTube's own badges and buttons */
+.ytdl-thumb {
+  position: absolute; left: 6px; bottom: 6px; z-index: 50;
+  width: 32px; height: 32px; padding: 0; border: 0; border-radius: 8px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(15,15,15,.8); color: #fff; backdrop-filter: blur(6px);
+  opacity: 0; transform: translateY(4px); pointer-events: none;
+  transition: opacity .15s, transform .15s, background .15s;
+}
+.ytdl-thumb svg { width: 20px; height: 20px; }
+.ytdl-host:hover .ytdl-thumb { opacity: 1; transform: none; pointer-events: auto; }
+.ytdl-thumb:hover { background: #f1f1f1; color: #0f0f0f; }
+/* YT Music song rows: sit on the right, before the duration column */
+ytmusic-responsive-list-item-renderer > .ytdl-thumb {
+  left: auto; right: 64px; top: 50%; bottom: auto; transform: translateY(-50%);
+}
+ytmusic-responsive-list-item-renderer.ytdl-host:hover > .ytdl-thumb { transform: translateY(-50%); }
+ytmusic-two-row-item-renderer > .ytdl-thumb { left: 8px; top: 8px; bottom: auto; }
+
+/* ---------- Dialog ---------- */
+.ytdl-overlay {
+  position: fixed; inset: 0; z-index: 2147483001;
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+  background: rgba(0,0,0,.55); backdrop-filter: blur(2px);
+  animation: ytdl-fade .15s ease-out;
+}
+.ytdl-dialog {
+  width: 460px; max-width: 100%; max-height: calc(100vh - 32px);
+  display: flex; flex-direction: column; overflow: hidden; outline: none;
+  border-radius: 16px; background: var(--ytdl-bg); color: var(--ytdl-text);
+  box-shadow: 0 16px 48px rgba(0,0,0,.4), 0 0 0 1px var(--ytdl-line);
+  animation: ytdl-pop .18s cubic-bezier(.2,.9,.3,1.2);
+  font-size: 14px;
+}
+.ytdl-head { display: flex; align-items: center; gap: 14px; padding: 18px 18px 14px; }
+.ytdl-hero {
+  width: 96px; height: 54px; flex: none; border-radius: 8px; object-fit: cover;
+  background: var(--ytdl-chip);
+}
+.ytdl-hero-icon { display: grid; place-items: center; }
+.ytdl-hero-icon svg { width: 28px; height: 28px; opacity: .8; }
+.ytdl-head-text { flex: 1; min-width: 0; }
+.ytdl-title {
+  font-size: 16px; font-weight: 500; line-height: 22px;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.ytdl-sub { font-size: 12px; color: var(--ytdl-muted); margin-top: 2px; }
+.ytdl-x {
+  align-self: flex-start; width: 36px; height: 36px; margin: -6px -6px 0 0; padding: 6px;
+  border: 0; border-radius: 50%; background: none; color: var(--ytdl-text); cursor: pointer;
+}
+.ytdl-x:hover { background: var(--ytdl-chip); }
+.ytdl-x svg { width: 24px; height: 24px; }
+
+.ytdl-body { padding: 0 18px 4px; overflow-y: auto; }
+
+/* segmented controls (scope, tabs, bitrate) */
+.ytdl-seg, .ytdl-tabs {
+  display: flex; gap: 2px; padding: 3px; border-radius: 10px; background: var(--ytdl-chip);
+}
+.ytdl-scope { margin: 0 18px 14px; }
+.ytdl-seg button, .ytdl-tabs button {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+  height: 32px; border: 0; border-radius: 8px; background: none; cursor: pointer;
+  color: var(--ytdl-muted); font: 500 13px "Roboto", Arial, sans-serif;
+  transition: background .15s, color .15s;
+}
+.ytdl-seg button:hover, .ytdl-tabs button:hover { color: var(--ytdl-text); }
+.ytdl-seg button.on, .ytdl-tabs button.on {
+  background: var(--ytdl-text); color: var(--ytdl-bg);
+}
+.ytdl-tabs button svg { width: 18px; height: 18px; }
+
+.ytdl-label {
+  margin: 16px 0 8px; font-size: 12px; font-weight: 500; letter-spacing: .4px;
+  text-transform: uppercase; color: var(--ytdl-muted);
+}
+
+/* option chips */
+.ytdl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.ytdl-chip {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  padding: 10px 12px; border: 1.5px solid transparent; border-radius: 12px;
+  background: var(--ytdl-chip); color: var(--ytdl-text); cursor: pointer; text-align: left;
+  font-family: inherit; transition: background .15s, border-color .15s;
+}
+.ytdl-chip:hover { background: var(--ytdl-hover); }
+.ytdl-chip.on { border-color: var(--ytdl-text); }
+.ytdl-chip b { display: flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 500; }
+.ytdl-chip i {
+  font-style: normal; font-size: 10px; font-weight: 700; padding: 1px 4px; border-radius: 3px;
+  background: var(--ytdl-text); color: var(--ytdl-bg);
+}
+.ytdl-chip small { font-size: 12px; color: var(--ytdl-muted); min-height: 16px; }
+.ytdl-shimmer {
+  display: inline-block; width: 48px; height: 10px; border-radius: 4px; vertical-align: middle;
+  background: linear-gradient(90deg, var(--ytdl-chip), var(--ytdl-hover), var(--ytdl-chip));
+  background-size: 200% 100%; animation: ytdl-shimmer 1.2s linear infinite;
+}
+
+/* playlist checklist */
+.ytdl-list-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin: 18px 0 6px; padding-bottom: 8px; border-bottom: 1px solid var(--ytdl-line);
+}
+.ytdl-check { display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 500; }
+.ytdl-count { font-size: 12px; color: var(--ytdl-muted); }
+.ytdl-list { max-height: 260px; overflow-y: auto; margin: 0 -8px; }
+.ytdl-row {
+  display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: 8px; cursor: pointer;
+}
+.ytdl-row:hover { background: var(--ytdl-chip); }
+.ytdl-overlay input[type=checkbox] {
+  width: 18px; height: 18px; margin: 0; flex: none; cursor: pointer; accent-color: var(--ytdl-accent);
+}
+.ytdl-idx { width: 26px; flex: none; text-align: right; font-size: 12px; color: var(--ytdl-muted); }
+.ytdl-row-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.ytdl-dur { flex: none; font-size: 12px; color: var(--ytdl-muted); }
+.ytdl-msg { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 28px 8px; color: var(--ytdl-muted); }
+.ytdl-msg-err { color: #ff6b6b; }
+.ytdl-msg-col { flex-direction: column; align-items: flex-start; gap: 6px; padding: 20px 0 8px; text-align: left; }
+.ytdl-msg-col b { color: var(--ytdl-text); font-size: 15px; font-weight: 500; }
+.ytdl-msg-col span { font-size: 13px; line-height: 1.5; }
+.ytdl-msg-col i { font-style: normal; color: var(--ytdl-text); }
+.ytdl-msg-col small { font-size: 11px; opacity: .7; word-break: break-word; }
+.ytdl-spin {
+  width: 18px; height: 18px; border-radius: 50%;
+  border: 2px solid var(--ytdl-line); border-top-color: var(--ytdl-text);
+  animation: ytdl-spin .8s linear infinite;
+}
+
+/* footer */
+.ytdl-foot {
+  display: flex; align-items: center; gap: 8px; padding: 14px 18px 18px; margin-top: 8px;
+  border-top: 1px solid var(--ytdl-line);
+}
+.ytdl-note { flex: 1; font-size: 12px; color: var(--ytdl-muted); }
+.ytdl-ghost, .ytdl-primary {
+  display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 16px;
+  border: 0; border-radius: 18px; cursor: pointer; font: 500 14px "Roboto", Arial, sans-serif;
+}
+.ytdl-ghost { background: none; color: var(--ytdl-text); }
+.ytdl-ghost:hover { background: var(--ytdl-chip); }
+.ytdl-primary { background: var(--ytdl-text); color: var(--ytdl-bg); padding-left: 12px; }
+.ytdl-primary:hover { opacity: .88; }
+.ytdl-primary:disabled { opacity: .35; cursor: default; }
+.ytdl-primary svg { width: 20px; height: 20px; }
+
+/* ---------- Toast, styled like YouTube's snackbar ---------- */
+.ytdl-toast {
+  position: fixed; left: 24px; bottom: 24px; z-index: 2147483002;
+  display: flex; align-items: center; gap: 12px; max-width: 420px;
+  padding: 12px 20px 12px 16px; border-radius: 10px;
+  background: #f1f1f1; color: #0f0f0f; font-size: 14px;
+  box-shadow: 0 4px 24px rgba(0,0,0,.3);
+  opacity: 0; transform: translateY(12px); pointer-events: none;
+  transition: opacity .2s, transform .2s;
+}
+.ytdl-toast.show { opacity: 1; transform: none; }
+.ytdl-toast svg { width: 20px; height: 20px; color: #2ba640; }
+.ytdl-toast.err svg { color: #cc0000; }
+
+/* ---------- Download button on videos (non-YouTube sites) ---------- */
+.ytdl-vbtn {
+  position: fixed; z-index: 2147483000; display: none; align-items: center; gap: 6px;
+  height: 34px; padding: 0 14px 0 10px; border: 0; border-radius: 17px; cursor: pointer;
+  background: rgba(15,15,15,.85); color: #fff; backdrop-filter: blur(6px);
+  font: 500 13px "Roboto", "Segoe UI", Arial, sans-serif;
+  box-shadow: 0 2px 10px rgba(0,0,0,.35), 0 0 0 1px rgba(255,255,255,.1);
+  transition: background .15s;
+}
+.ytdl-vbtn.show { display: inline-flex; }
+.ytdl-vbtn:hover { background: #ff0033; }
+.ytdl-vbtn svg { width: 20px; height: 20px; fill: currentColor; }
+
+/* ---------- Floating progress bubble ---------- */
+.ytdl-bubble {
+  position: fixed; right: 24px; bottom: 96px; z-index: 2147483000;
+  width: 56px; height: 56px; border-radius: 50%;
+  display: none; align-items: center; justify-content: center;
+  background: rgba(15,15,15,.92); color: #fff; backdrop-filter: blur(8px);
+  box-shadow: 0 6px 24px rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.08);
+  font: 600 13px "Roboto", Arial, sans-serif;
+  cursor: grab; user-select: none; touch-action: none;
+  animation: ytdl-pop .2s cubic-bezier(.2,.9,.3,1.2);
+}
+.ytdl-bubble.show { display: flex; }
+.ytdl-bubble.dragging { cursor: grabbing; box-shadow: 0 10px 32px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.12); }
+.ytdl-ring { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+.ytdl-ring circle { fill: none; stroke-width: 4; }
+.ytdl-ring .track { stroke: rgba(255,255,255,.12); }
+.ytdl-ring .bar { stroke: #ff0033; stroke-linecap: round; transition: stroke-dashoffset .4s ease, stroke .2s; }
+.ytdl-bubble.done .bar { stroke: #2ba640; }
+.ytdl-bubble.failed .bar { stroke: #cc0000; }
+.ytdl-bubble-label { position: relative; display: flex; }
+.ytdl-bubble-label svg { width: 24px; height: 24px; fill: currentColor; }
+.ytdl-bubble.done .ytdl-bubble-label { color: #2ba640; }
+.ytdl-bubble.failed .ytdl-bubble-label { color: #ff4e45; }
+.ytdl-bubble-count:not(:empty) {
+  position: absolute; left: -4px; top: -4px; min-width: 20px; height: 20px; padding: 0 5px;
+  border-radius: 10px; background: #ff0033; color: #fff; font-size: 11px; line-height: 20px; text-align: center;
+}
+.ytdl-bubble-x {
+  position: absolute; right: -6px; top: -6px; width: 22px; height: 22px; padding: 3px;
+  border: 0; border-radius: 50%; cursor: pointer; display: flex;
+  background: #3a3a3a; color: #fff; box-shadow: 0 2px 6px rgba(0,0,0,.4);
+  opacity: 0; transform: scale(.8); transition: opacity .15s, transform .15s;
+}
+.ytdl-bubble-x svg { width: 16px; height: 16px; fill: currentColor; }
+.ytdl-bubble-x:hover { background: #cc0000; }
+.ytdl-bubble:hover .ytdl-bubble-x { opacity: 1; transform: none; }
+.ytdl-bubble-tip {
+  position: absolute; right: 64px; top: 50%; transform: translateY(-50%);
+  width: max-content; max-width: 280px; padding: 8px 12px; border-radius: 8px;
+  background: rgba(15,15,15,.95); color: #f1f1f1; font: 400 12px/1.5 "Roboto", Arial, sans-serif;
+  white-space: pre-line; pointer-events: none; opacity: 0; transition: opacity .15s;
+}
+.ytdl-bubble:hover:not(.dragging) .ytdl-bubble-tip { opacity: 1; }
+.ytdl-bubble.tip-right .ytdl-bubble-tip { right: auto; left: 64px; }
+
+@keyframes ytdl-fade { from { opacity: 0; } }
+@keyframes ytdl-pop { from { opacity: 0; transform: scale(.96) translateY(8px); } }
+@keyframes ytdl-spin { to { transform: rotate(360deg); } }
+@keyframes ytdl-shimmer { to { background-position: -200% 0; } }

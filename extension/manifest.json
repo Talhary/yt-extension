@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "YT Downloader",
+  "version": "2.0.0",
+  "description": "Download videos, songs and playlists from YouTube, YouTube Music and other video sites. Standalone: nothing else to install.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoLEqKN81Xcpv5d/R/yBdqS4s3WSKHwxcC9NpqVMcwHNFcMm+rUcABBM6iWzqdn7RK0HZks92qTHNxuCu7bwG8I4epspwVX4iepSILojQVfrtDOK/WROCziAlaUtjcihEYavwrPwoiq1RnPfa85/VDqwfe4NTD7RiI7v68b+UQceB7ArjPlesIgsKmgaja2HeKVDmLzJ1oXhAoseC1f695XeFZ8D3kh0CN/tb1p3P3oQkBwBH+nDs6zveoQ5d8eWKECcrBihgR708kUvTIUQ3poa8VlRpb8c0Tn1ByIjNrwaw86PVLRRubg1usfVTdY32CMMK6oNbBlLHbEpevMx11wIDAQAB",
+  "minimum_chrome_version": "124",
+  "permissions": [
+    "storage", "unlimitedStorage", "cookies", "contextMenus", "downloads", "offscreen",
+    "declarativeNetRequestWithHostAccess", "webRequest"
+  ],
+  "host_permissions": ["http://*/*", "https://*/*"],
+  "background": { "service_worker": "background.js", "type": "module" },
+  "action": { "default_popup": "popup.html", "default_title": "YT Downloader" },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+  },
+  "sandbox": { "pages": ["solver/sandbox.html"] },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://www.youtube.com/*"],
+      "js": ["player.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://www.instagram.com/*"],
+      "js": ["ig-sniffer.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    }
+  ]
+}

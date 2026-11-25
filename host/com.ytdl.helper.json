@@ -1,0 +1,7 @@
+{
+  "name": "com.ytdl.helper",
+  "description": "YT Downloader helper",
+  "path": "D:\\yt-extension\\host\\run_host.bat",
+  "type": "stdio",
+  "allowed_origins": ["chrome-extension://lahpanickelhfkjjmcajellkekddgodh/"]
+}
